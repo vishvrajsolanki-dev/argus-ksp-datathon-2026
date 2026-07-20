@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+*.egg-info/
+node_modules/
+frontend/dist/
+ml/artifacts/*.joblib
+.DS_Store
+.coverage
+htmlcov/
+*.log
+argus_pg/
