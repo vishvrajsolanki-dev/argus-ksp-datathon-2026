@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "cursor/**"]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: argus
+          POSTGRES_PASSWORD: argus
+          POSTGRES_DB: argus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U argus -d argus"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://argus:argus@localhost:5432/argus
+      JWT_SECRET: ci-secret
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.10"
+      - name: Install deps
+        run: pip install -r backend/requirements.txt
+      - name: Seed + embed
+        run: |
+          python db/seed.py --reset
+          python db/embed.py
+          python -c "from ml.gbm_model import train_and_save; train_and_save()"
+      - name: Lint (compileall)
+        run: python -m compileall backend ml db
+      - name: Test
+        run: pytest -q backend/tests
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run build
